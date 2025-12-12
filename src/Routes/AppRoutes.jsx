@@ -7,11 +7,11 @@ import SpecialtiesPage from "@/pages/Specialities";
 import UsersPage from "@/pages/Users";
 import React from "react";
 import { Route, Routes } from "react-router-dom";
-import HospitalsDoctorsPage from "@/pages/Hospital-Doctors";
 import BookingsPage from "@/pages/Booking";
 import BannersPage from "@/pages/Banners";
 import LoginPage from "@/pages/auth/Login";
 import ProtectedRoutes from "@/utils/ProtectedRoutes";
+import HospitalsDoctorsPage from "@/pages/Hospital-doctors";
 
 export default function AppRoutes() {
   return (

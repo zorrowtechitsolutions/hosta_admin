@@ -46,11 +46,10 @@ export function SpecialtiesList() {
   const [editSpecialty, setEditSpecialty] = useState({
     _id: "",
     name: "",
-    picture: null ,
-    imageFile: null ,
+    picture: null,
+    imageFile: null,
     imagePreview: null 
   })
-  
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
@@ -59,7 +58,6 @@ export function SpecialtiesList() {
   // Fetch data
   const { data: apiData, isLoading, isError, refetch } = useGetAllSpecialityQuery();
   
-  
   // Mutations
   const [addASpeciality, { isLoading: isAdding }] = useAddASpecialityMutation()
   const [deleteASpeciality, { isLoading: isDeleting }] = useDeleteASpecialityMutation()
@@ -67,6 +65,18 @@ export function SpecialtiesList() {
 
   // Transform API data
   const specialties = apiData?.data || apiData || []
+
+  // Debug API data structure
+  useEffect(() => {
+    if (apiData) {
+      console.log("API Data structure:", apiData);
+      if (specialties.length > 0) {
+        console.log("First specialty:", specialties[0]);
+        console.log("First specialty picture:", specialties[0]?.picture);
+        console.log("Picture type:", typeof specialties[0]?.picture);
+      }
+    }
+  }, [apiData, specialties]);
 
   // Filter specialties based on search term
   const filteredSpecialties = specialties.filter((specialty) => {
@@ -80,6 +90,33 @@ export function SpecialtiesList() {
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
   const currentItems = filteredSpecialties.slice(startIndex, endIndex)
+
+  // Helper function to get image URL
+  const getImageUrl = (imageData) => {
+    if (!imageData) return null;
+    
+    // If it's already a string URL
+    if (typeof imageData === 'string') {
+      return imageData;
+    }
+    
+    // If it's an object with imageUrl property
+    if (imageData && imageData.imageUrl) {
+      return imageData.imageUrl;
+    }
+    
+    // If it's an object with url property
+    if (imageData && imageData.url) {
+      return imageData.url;
+    }
+    
+    // If it's a File object with preview
+    if (imageData instanceof File || (imageData && imageData.type === 'image')) {
+      return URL.createObjectURL(imageData);
+    }
+    
+    return null;
+  };
 
   // Handle image upload for add
   const handleImageUpload = (e) => {
@@ -101,10 +138,12 @@ export function SpecialtiesList() {
         return
       }
 
+      const imagePreview = URL.createObjectURL(file);
+      
       setNewSpecialty({
         ...newSpecialty,
         imageFile: file,
-        imagePreview: URL.createObjectURL(file)
+        imagePreview: imagePreview
       })
     }
   }
@@ -129,17 +168,19 @@ export function SpecialtiesList() {
         return
       }
 
+      const imagePreview = URL.createObjectURL(file);
+      
       setEditSpecialty({
         ...editSpecialty,
         imageFile: file,
-        imagePreview: URL.createObjectURL(file)
+        imagePreview: imagePreview
       })
     }
   }
 
   // Remove image for add
   const removeImage = () => {
-    if (newSpecialty.imagePreview) {
+    if (newSpecialty.imagePreview && typeof newSpecialty.imagePreview === 'string') {
       URL.revokeObjectURL(newSpecialty.imagePreview)
     }
     setNewSpecialty({
@@ -151,19 +192,29 @@ export function SpecialtiesList() {
 
   // Remove image for edit
   const removeEditImage = () => {
-    if (editSpecialty.imagePreview && editSpecialty.imagePreview !== editSpecialty.picture) {
+    // If we have a new image preview (blob URL), revoke it
+    if (editSpecialty.imagePreview && typeof editSpecialty.imagePreview === 'string' && editSpecialty.imageFile) {
       URL.revokeObjectURL(editSpecialty.imagePreview)
     }
+    
+    // Reset to original picture
     setEditSpecialty({
       ...editSpecialty,
       imageFile: null,
-      imagePreview: editSpecialty.picture
+      imagePreview: getImageUrl(editSpecialty.picture) // Use original picture
     })
   }
 
   // Handle add specialty
   const handleAddSpecialty = async () => {
     try {
+      if (!newSpecialty.name.trim()) {
+        toast.error("Name is required", {
+          description: "Please enter a specialty name."
+        });
+        return;
+      }
+
       const formData = new FormData()
       formData.append('name', newSpecialty.name)
       
@@ -172,15 +223,14 @@ export function SpecialtiesList() {
       }
 
       // Debug: Log formData contents
-      console.log("FormData contents:")
+      console.log("Add FormData contents:")
       for (let [key, value] of formData.entries()) {
-        console.log(key, value)
+        console.log(key, value instanceof File ? `${value.name} (${value.type})` : value)
       }
 
-      // FIX: Pass formData directly, not as an object
       const result = await addASpeciality(formData).unwrap()
 
-      console.log("Backend response:", result)
+      console.log("Add response:", result)
 
       toast.success("Specialty added successfully", {
         description: `${newSpecialty.name} has been added.`
@@ -189,7 +239,7 @@ export function SpecialtiesList() {
       setIsAddDialogOpen(false)
       
       // Clean up object URL
-      if (newSpecialty.imagePreview) {
+      if (newSpecialty.imagePreview && typeof newSpecialty.imagePreview === 'string') {
         URL.revokeObjectURL(newSpecialty.imagePreview)
       }
       
@@ -198,11 +248,12 @@ export function SpecialtiesList() {
         imageFile: null,
         imagePreview: null
       })
+      
       refetch()
     } catch (error) {
       console.error("Failed to add specialty:", error)
       toast.error("Failed to add specialty", {
-        description: error?.data?.message || "Please try again."
+        description: error?.data?.message || error?.error || "Please try again."
       })
     }
   }
@@ -210,53 +261,96 @@ export function SpecialtiesList() {
   // Handle edit specialty
   const handleEditSpecialty = async () => {
     try {
-      const formData = new FormData()
-      formData.append('name', editSpecialty.name)
+      if (!editSpecialty.name.trim()) {
+        toast.error("Name is required", {
+          description: "Please enter a specialty name."
+        });
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('name', editSpecialty.name);
       
+      // Only append image if a new file was selected
       if (editSpecialty.imageFile) {
-        formData.append('image', editSpecialty.imageFile)
+        formData.append('image', editSpecialty.imageFile);
+        console.log("Appending new image file:", editSpecialty.imageFile.name);
+      } else {
+        console.log("No new image file selected");
       }
 
       // Debug: Log formData contents
-      console.log("Edit FormData contents:")
+      console.log("Edit FormData contents:");
       for (let [key, value] of formData.entries()) {
-        console.log(key, value)
+        console.log(key, value instanceof File ? `${value.name} (${value.type})` : value);
       }
 
-      // FIX: Pass data correctly
-      const result = await updateASpeciality({
-        id: editSpecialty._id,
-        data: formData
-      }).unwrap()
+      console.log("Sending update with ID:", editSpecialty._id);
 
-      console.log("Update response:", result)
+      // Try different formats based on your API
+      let result;
+      try {
+        // Format 1: Most common for FormData
+        result = await updateASpeciality({
+          id: editSpecialty._id,
+          data: formData
+        }).unwrap();
+      } catch (formatError) {
+        console.log("Format 1 failed, trying Format 2");
+        
+        // Format 2: Direct FormData (some APIs expect just FormData)
+        const dataWithId = new FormData();
+        dataWithId.append('name', editSpecialty.name);
+        if (editSpecialty.imageFile) {
+          dataWithId.append('image', editSpecialty.imageFile);
+        }
+        
+        result = await updateASpeciality({
+          _id: editSpecialty._id,
+          data: dataWithId
+        }).unwrap();
+      }
+
+      console.log("Update response:", result);
 
       toast.success("Specialty updated successfully", {
         description: `${editSpecialty.name} has been updated.`
-      })
+      });
 
-      setIsEditDialogOpen(false)
+      setIsEditDialogOpen(false);
       
-      // Clean up object URL if it's not the original picture
-      if (editSpecialty.imagePreview && editSpecialty.imagePreview !== editSpecialty.picture) {
-        URL.revokeObjectURL(editSpecialty.imagePreview)
+      // Clean up object URL if it's a new image
+      if (editSpecialty.imagePreview && typeof editSpecialty.imagePreview === 'string' && editSpecialty.imageFile) {
+        URL.revokeObjectURL(editSpecialty.imagePreview);
       }
       
+      // Reset edit state
       setEditSpecialty({
         _id: "",
         name: "",
         picture: null,
         imageFile: null,
         imagePreview: null
-      })
-      refetch()
+      });
+      
+      // Refresh data
+      refetch();
     } catch (error) {
-      console.error("Failed to update specialty:", error)
+      console.error("Failed to update specialty:", error);
+      
+      // More detailed error logging
+      console.error("Error details:", {
+        status: error?.status,
+        data: error?.data,
+        message: error?.message,
+        originalArgs: error?.meta?.arg
+      });
+      
       toast.error("Failed to update specialty", {
-        description: error?.data?.message || "Please try again."
-      })
+        description: error?.data?.message || error?.error || error?.message || "Please try again."
+      });
     }
-  }
+  };
 
   // Handle delete specialty
   const handleDeleteSpecialty = async (id, name) => {
@@ -282,14 +376,20 @@ export function SpecialtiesList() {
 
   // Open edit dialog
   const openEditDialog = (specialty) => {
+    console.log("Opening edit dialog for:", specialty);
+    console.log("Picture data:", specialty.picture);
+    
+    const pictureUrl = getImageUrl(specialty.picture);
+    console.log("Picture URL:", pictureUrl);
+    
     setEditSpecialty({
       _id: specialty._id,
       name: specialty.name,
-      picture: specialty.picture || null,
+      picture: specialty.picture,
       imageFile: null,
-      imagePreview: specialty.picture || null
-    })
-    setIsEditDialogOpen(true)
+      imagePreview: pictureUrl
+    });
+    setIsEditDialogOpen(true);
   }
 
   // Handle page change
@@ -305,10 +405,10 @@ export function SpecialtiesList() {
   // Clean up object URLs on unmount
   useEffect(() => {
     return () => {
-      if (newSpecialty.imagePreview) {
+      if (newSpecialty.imagePreview && typeof newSpecialty.imagePreview === 'string') {
         URL.revokeObjectURL(newSpecialty.imagePreview)
       }
-      if (editSpecialty.imagePreview && editSpecialty.imagePreview !== editSpecialty.picture) {
+      if (editSpecialty.imagePreview && typeof editSpecialty.imagePreview === 'string' && editSpecialty.imageFile) {
         URL.revokeObjectURL(editSpecialty.imagePreview)
       }
     }
@@ -394,11 +494,12 @@ export function SpecialtiesList() {
                     {newSpecialty.imagePreview && (
                       <div className="relative mt-2">
                         <div className="relative w-32 h-32 border rounded-md overflow-hidden">
-                          {/* Use regular img tag for blob URLs */}
                           <img
-                            src={newSpecialty.imagePreview.imageUrl}
+                            src={newSpecialty.imagePreview}
                             alt="Preview"
                             className="w-full h-full object-cover"
+                            onLoad={() => console.log("Image loaded successfully")}
+                            onError={(e) => console.error("Image failed to load", e)}
                           />
                         </div>
                         <Button
@@ -460,58 +561,74 @@ export function SpecialtiesList() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    currentItems.map((specialty) => (
-                      <TableRow key={specialty._id}>
-                        <TableCell>
-                          <div className="relative w-12 h-12 rounded-md overflow-hidden border">
-                            {specialty.picture ? (
-                              // Use regular img tag for external URLs
-                              <img
-                                src={specialty?.picture?.imageUrl}
-                                alt={specialty.name}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center bg-muted">
-                                <Activity className="h-6 w-6 text-muted-foreground" />
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {specialty.name}
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          {new Date(specialty.createdAt).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <span className="sr-only">Open menu</span>
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem onClick={() => openEditDialog(specialty)}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="text-red-600"
-                                onClick={() => handleDeleteSpecialty(specialty._id, specialty.name)}
-                                disabled={isDeleting}
-                              >
-                                <Trash className="mr-2 h-4 w-4" />
-                                {isDeleting ? "Deleting..." : "Delete"}
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    currentItems.map((specialty) => {
+                      const imageUrl = getImageUrl(specialty.picture);
+                      return (
+                        <TableRow key={specialty._id}>
+                          <TableCell>
+                            <div className="relative w-12 h-12 rounded-md overflow-hidden border">
+                              {imageUrl ? (
+                                <img
+                                  src={imageUrl}
+                                  alt={specialty.name}
+                                  className="w-full h-full object-cover"
+                                  onLoad={() => console.log(`Image loaded for ${specialty.name}`)}
+                                  onError={(e) => {
+                                    console.error(`Image failed to load for ${specialty.name}:`, imageUrl);
+                                    e.target.style.display = 'none';
+                                    // Show fallback icon
+                                    const parent = e.target.parentElement;
+                                    parent.innerHTML = `
+                                      <div class="w-full h-full flex items-center justify-center bg-muted">
+                                        <svg class="h-6 w-6 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                      </div>
+                                    `;
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-muted">
+                                  <Activity className="h-6 w-6 text-muted-foreground" />
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {specialty.name}
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell">
+                            {specialty.createdAt ? new Date(specialty.createdAt).toLocaleDateString() : 'N/A'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <span className="sr-only">Open menu</span>
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem onClick={() => openEditDialog(specialty)}>
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-red-600"
+                                  onClick={() => handleDeleteSpecialty(specialty._id, specialty.name)}
+                                  disabled={isDeleting}
+                                >
+                                  <Trash className="mr-2 h-4 w-4" />
+                                  {isDeleting ? "Deleting..." : "Delete"}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
                   )}
                 </TableBody>
               </Table>
@@ -607,14 +724,24 @@ export function SpecialtiesList() {
                   Upload a new image to replace the current one (Max 5MB)
                 </p>
                 
-                {(editSpecialty?.imagePreview || editSpecialty.picture) && (
+                {editSpecialty.imagePreview && (
                   <div className="relative mt-2">
                     <div className="relative w-32 h-32 border rounded-md overflow-hidden">
-                      {/* Use regular img tag for blob URLs */}
                       <img
-                        src={editSpecialty.imagePreview?.imageUrl || editSpecialty?.picture?.imageUrl || ""}
+                        src={editSpecialty.imagePreview}
                         alt="Preview"
                         className="w-full h-full object-cover"
+                        onLoad={() => console.log("Edit image loaded successfully")}
+                        onError={(e) => {
+                          console.error("Edit image failed to load:", editSpecialty.imagePreview);
+                          e.target.style.display = 'none';
+                          const parent = e.target.parentElement;
+                          parent.innerHTML = `
+                            <div class="w-full h-full flex items-center justify-center bg-muted">
+                              <p class="text-xs text-center p-2">Image not available</p>
+                            </div>
+                          `;
+                        }}
                       />
                     </div>
                     <Button
@@ -627,6 +754,9 @@ export function SpecialtiesList() {
                     >
                       <X className="h-3 w-3" />
                     </Button>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {editSpecialty.imageFile ? "New image selected" : "Current image"}
+                    </p>
                   </div>
                 )}
               </div>

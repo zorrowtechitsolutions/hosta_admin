@@ -341,20 +341,38 @@ const AmbulanceForm = ({
     setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
-  const validate = () => {
-    const e = {};
-    if (!formData.serviceName.trim()) e.serviceName = "Service name is required";
-    if (!formData.phone.trim()) e.phone = "Phone is required";
-    else if (!/^\d{10}$/.test(formData.phone)) e.phone = "Phone must be exactly 10 digits";
-    if (!formData.vehicleType) e.vehicleType = "Vehicle type is required";
-    if (!formData.place.trim()) e.place = "Place is required";
-    if (!formData.country) e.country = "Country is required";
-    if (!formData.pincode.trim()) e.pincode = "Pincode is required";
-    else if (!/^\d{6}$/.test(formData.pincode)) e.pincode = "Pincode must be exactly 6 digits";
+  // const validate = () => {
+  //   const e = {};
+  //   if (!formData.serviceName.trim()) e.serviceName = "Service name is required";
+  //   if (!formData.phone.trim()) e.phone = "Phone is required";
+  //   else if (!/^\d{10}$/.test(formData.phone)) e.phone = "Phone must be exactly 10 digits";
+  //   if (!formData.vehicleType) e.vehicleType = "Vehicle type is required";
+  //   if (!formData.place.trim()) e.place = "Place is required";
+  //   if (!formData.country) e.country = "Country is required";
+  //   if (!formData.pincode.trim()) e.pincode = "Pincode is required";
+  //   else if (!/^\d{6}$/.test(formData.pincode)) e.pincode = "Pincode must be exactly 6 digits";
 
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
+  //   setErrors(e);
+  //   return Object.keys(e).length === 0;
+  // };
+
+
+  const validate = () => {
+  const e = {};
+  if (!formData.serviceName.trim()) e.serviceName = "Service name is required";
+  if (!formData.phone.trim()) e.phone = "Phone is required";
+  else if (!/^\d+$/.test(formData.phone)) e.phone = "Phone must contain only digits";
+  else if (formData.phone.length < 10) e.phone = "Phone must be at least 10 digits";
+  // Removed the exact 10-digit validation to allow longer numbers
+  if (!formData.vehicleType) e.vehicleType = "Vehicle type is required";
+  if (!formData.place.trim()) e.place = "Place is required";
+  if (!formData.country) e.country = "Country is required";
+  if (!formData.pincode.trim()) e.pincode = "Pincode is required";
+  else if (!/^\d{6}$/.test(formData.pincode)) e.pincode = "Pincode must be exactly 6 digits";
+
+  setErrors(e);
+  return Object.keys(e).length === 0;
+};
 
   const handleSubmit = () => {
     if (!validate()) return;
@@ -453,7 +471,6 @@ const AmbulanceForm = ({
                 value={formData?.phone}
                 onChange={(e) => handleChange("phone", e.target.value)}
                 className="border-0 px-0"
-                maxLength={10}
               />
             </div>
             {errors.phone && (

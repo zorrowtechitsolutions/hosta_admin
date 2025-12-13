@@ -491,7 +491,6 @@ const AmbulanceForm = ({
          
 
                          <SelectContent>
-  <SelectItem value="all">All Ambulance Types</SelectItem>
   <SelectItem value="bls">BLS – Basic Life Support</SelectItem>
   <SelectItem value="als">ALS – Advanced Life Support</SelectItem>
   <SelectItem value="icu">ICU Ambulance</SelectItem>

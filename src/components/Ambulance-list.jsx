@@ -225,7 +225,7 @@ const AmbulanceForm = ({
         }
       }
 
-      console.log(editData, "iiiii");
+      
       
 
       setFormData(editData);
@@ -466,12 +466,17 @@ const AmbulanceForm = ({
             <div className="flex items-center border rounded-md px-3">
               <Phone size={16} className="text-gray-400 mr-2" />
               <Input
-                id="phone"
-                placeholder="9876543210"
-                value={formData?.phone}
-                onChange={(e) => handleChange("phone", e.target.value)}
-                className="border-0 px-0"
-              />
+      id="phone"
+      placeholder="9876543210"
+      value={formData?.phone}
+      onChange={(e) => {
+        // Allow only digits
+        const value = e.target.value.replace(/\D/g, '');
+        handleChange("phone", value);
+      }}
+      className="border-0 px-0"
+      // Removed maxLength to allow longer numbers
+    />
             </div>
             {errors.phone && (
               <p className="text-sm text-red-500">{errors.phone}</p>
@@ -621,7 +626,7 @@ export function AmbulanceList() {
   const [searchTerm, setSearchTerm] = useState("")
   const [vehicleTypeFilter, setVehicleTypeFilter] = useState("all")
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage] = useState(5)
+  const [itemsPerPage] = useState(8)
   const [formOpen, setFormOpen] = useState(false)
   const [editingAmbulance, setEditingAmbulance] = useState(null)
 
@@ -713,6 +718,7 @@ export function AmbulanceList() {
       await addNewAmbulance(formData).unwrap();
       refetch();
       setFormOpen(false);
+      
     } catch (error) {
       console.error("Failed to add ambulance:", error);
     }
@@ -720,12 +726,11 @@ export function AmbulanceList() {
 
   const handleEditAmbulance = async (formData) => {
     try {
-      console.log(formData, "form");
       
-      // await editAmbulance({
-      //   id: editingAmbulance._id,
-      // formData
-      // }).unwrap();
+      await editAmbulance({
+        id: editingAmbulance._id,
+      formData
+      }).unwrap();
       refetch();
       setFormOpen(false);
       setEditingAmbulance(null);

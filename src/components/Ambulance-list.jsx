@@ -488,13 +488,19 @@ const AmbulanceForm = ({
               <SelectTrigger>
                 <SelectValue placeholder="Select vehicle type" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="van">Van</SelectItem>
-                <SelectItem value="car">Car</SelectItem>
-                <SelectItem value="suv">SUV</SelectItem>
-                <SelectItem value="bus">Bus</SelectItem>
-                <SelectItem value="motorcycle">Motorcycle</SelectItem>
-              </SelectContent>
+         
+
+                         <SelectContent>
+  <SelectItem value="all">All Ambulance Types</SelectItem>
+  <SelectItem value="bls">BLS – Basic Life Support</SelectItem>
+  <SelectItem value="als">ALS – Advanced Life Support</SelectItem>
+  <SelectItem value="icu">ICU Ambulance</SelectItem>
+  <SelectItem value="nicu">NICU Ambulance</SelectItem>
+  <SelectItem value="cardiac">Cardiac Ambulance</SelectItem>
+  <SelectItem value="patient-transport">Patient Transport</SelectItem>
+  <SelectItem value="mortuary">Mortuary Ambulance</SelectItem>
+</SelectContent>
+
             </Select>
             {errors.vehicleType && (
               <p className="text-sm text-red-500">{errors.vehicleType}</p>
